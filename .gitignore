@@ -1,0 +1,34 @@
+# Build directories
+build/
+_build/
+out/
+bin/
+*.so
+*.a
+*.lib
+*.dll
+*.exe
+
+# Cache directories
+.cache/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Compiler files
+*.o
+*.obj
+*.d
+*.out
+*.ilk
+*.pdb
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
