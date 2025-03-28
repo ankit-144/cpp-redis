@@ -104,15 +104,33 @@ private:
 
             HttpMessage request = HttpMessage::parse(client_fd);
 
-            DEBUG(request.body);
-            DEBUG(request.headers);
-            DEBUG(request.start_line);
-
-
+            std::vector<char> body = request.body;
+            std::string headers = 
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: text/html\r\n"
+                "Content-Length: " + std::to_string(body.size()) + "\r\n"
+                "Connection: close\r\n\r\n";
+            
+            // 3. Send all data safely
+            if (!send_all(client_fd, headers.data(), headers.size()) ||
+                !send_all(client_fd, body.data(), body.size())) {
+                std::cerr << "Failed to send complete response\n";
+            }
 
         } catch(const std::exception &e) {
             std::cerr << "Exception : " << e.what() << "\n" ;
         }
+    }
+
+    bool send_all(int socket, const char* data, size_t length) {
+        size_t total_sent = 0;
+        while (total_sent < length) {
+            ssize_t sent = send(socket, data + total_sent, length - total_sent, 0);
+            if (sent == -1) return false;  // Error
+            if (sent == 0) return false;   // Connection closed
+            total_sent += sent;
+        }
+        return true;
     }
 };
 
