@@ -1,4 +1,5 @@
 #include "../include/Http.hpp"
+#include <exception>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -8,6 +9,9 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include "debug/debug.hpp"
+#include "utils/constants.hpp"
+#include "utils/http_message.hpp"
 
 
 
@@ -95,30 +99,19 @@ public:
 
 private:
     void handle_connection(int client_fd) {
-        char buffer[1024];
         
-        while (true) {
-            // Receive data
-            ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            
-            if (bytes_received < 0) {
-                throw_system_error("recv failed");
-            } else if (bytes_received == 0) {
-                // Client disconnected
-                break;
-            }
+        try {
 
-            // Echo back
-            std::cout.write(buffer, bytes_received) << std::endl;
-            std::cout << "Message Received : " << std::string(buffer) << std::endl;
-            std::cout << "Received " << bytes_received << " bytes" << std::endl;
+            HttpMessage request = HttpMessage::parse(client_fd);
 
-            std::string http_reponse = Http::create(200 , "Hello back from server");
-            
-            ssize_t bytes_sent = send(client_fd, http_reponse.c_str(), http_reponse.size(), 0);
-            if (bytes_sent < 0) {
-                throw_system_error("send failed");
-            }
+            DEBUG(request.body);
+            DEBUG(request.headers);
+            DEBUG(request.start_line);
+
+
+
+        } catch(const std::exception &e) {
+            std::cerr << "Exception : " << e.what() << "\n" ;
         }
     }
 };
