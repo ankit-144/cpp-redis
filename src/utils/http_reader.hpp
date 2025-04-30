@@ -46,7 +46,7 @@ public:
             result.append(start, remaining);
             pos_ = buffer_.size(); // Force refill
         }
-        return nullptr;
+        return result;
     }
 
     // Reads exactly N bytes with buffering
@@ -92,7 +92,7 @@ public:
             }
 
             if (chunk_size == 0) {
-                read_until("\r\n\r\n"); // Trailing headers
+                read_until("\r\n"); // Trailing headers
                 break;
             }
 

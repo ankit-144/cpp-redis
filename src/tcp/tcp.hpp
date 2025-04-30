@@ -7,23 +7,22 @@
 #include <ostream>
 #include <string>
 #include <system_error>
-#include <cstring>      // strerror()
+#include <cstring>      
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <mutex>        // For logging mutex
-#include <stdexcept>    // For runtime_error
+#include <mutex>        
+#include <stdexcept>    
 
-// threads 
+
 #include <thread>
 
-// Forward declare HttpMessage if it's in another header
-#include "../utils/http_message.hpp" // Assuming this path
-#include "../debug/debug.hpp"       // Assuming this path
+#include "../utils/http_message.hpp" 
+#include "../debug/debug.hpp"       
 
 class TCPServer {
-protected: // Changed to protected
+protected: 
     int server_fd;
     const int port;
     std::mutex io_mutex; // Mutex for thread-safe console output
@@ -61,9 +60,9 @@ protected: // Changed to protected
             HttpMessage request = HttpMessage::parse(client_fd);
             DEBUG("Parsed request", request.headers, request.start_line);
 
-            // 2. Prepare response (Example: Echo)
-            std::vector<char> body_to_send = request.body; // Echo body
-            std::string response_body_str(body_to_send.begin(), body_to_send.end()); // For debug
+            
+            std::vector<char> body_to_send = request.body; 
+            std::string response_body_str(body_to_send.begin(), body_to_send.end()); 
             std::string headers =
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: text/plain\r\n"
@@ -83,25 +82,25 @@ protected: // Changed to protected
 
         } catch (const std::exception &e) {
             log_error("Exception during base handle_connection for FD " + std::to_string(client_fd) + ": " + e.what());
-             // Try sending a 500 error
+             
             try {
                  std::string error_response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
                  send_all(client_fd, error_response.data(), error_response.size());
             } catch(...) { /* Ignore errors during error reporting */ }
-            // NOTE: No 'throw;' here, let the caller decide if the connection is unusable
+            
         } catch (...) {
              log_error("Unknown exception during base handle_connection for FD " + std::to_string(client_fd));
-             // Try sending a 500 error
+             
             try {
                  std::string error_response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
                  send_all(client_fd, error_response.data(), error_response.size());
             } catch(...) { /* Ignore errors during error reporting */ }
         }
          DEBUG("Base handler finished for FD:", client_fd);
-         // Socket is NOT closed here; caller (worker thread or base run loop) handles closing.
+         // socket will not be closed here 
     }
 
-    // Helper to send all data reliably (blocking)
+    
     virtual bool send_all(int socket, const char* data, size_t length) {
         size_t total_sent = 0;
         while (total_sent < length) {
@@ -115,7 +114,7 @@ protected: // Changed to protected
                 return false;
             }
              if (sent == 0) {
-                // Should not happen often with blocking sockets, but indicates potential issue
+                
                 log_error("Send returned 0 unexpectedly on FD " + std::to_string(socket));
                 return false;
             }
@@ -131,36 +130,37 @@ public:
          DEBUG("Base TCPServer constructor for port", port);
     }
 
-    // Virtual destructor
+    
     virtual ~TCPServer() {
         log("Base TCPServer destructor called.");
-        close_socket(server_fd); // Base class cleans up its primary socket
+        close_socket(server_fd); 
     }
 
-    // Make start virtual
+    
+    
     virtual void start() {
         log("Starting base server setup...");
         if (server_fd >= 0) {
              log("Server already started?");
-             return; // Or throw?
+             return; 
         }
 
-        // Create socket
+        
         server_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (server_fd < 0) {
             throw_system_error("socket creation failed");
         }
         DEBUG("Socket created", server_fd);
 
-        // Set SO_REUSEADDR
+        
         int opt = 1;
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
-            close_socket(server_fd); // Clean up on error
+            close_socket(server_fd); 
             throw_system_error("setsockopt(SO_REUSEADDR) failed");
         }
         DEBUG("SO_REUSEADDR set");
 
-        // Bind
+        
         struct sockaddr_in address{};
         address.sin_family = AF_INET;
         address.sin_addr.s_addr = INADDR_ANY;
@@ -172,7 +172,6 @@ public:
         }
         DEBUG("Socket bound to port", port);
 
-        // Listen
         if (listen(server_fd, SOMAXCONN) < 0) {
             close_socket(server_fd);
             throw_system_error("listen failed");
@@ -181,22 +180,22 @@ public:
         log("Base server socket setup complete. Listening on port " + std::to_string(port));
     }
 
-    // Make run virtual - Default implementation is single-threaded accept->handle->close
+    //run virtual - Default implementation is single-threaded accept->handle->close
     virtual void run() {
         log("Running base single-threaded accept loop...");
          if (server_fd < 0) {
              throw std::runtime_error("Server not started before running.");
          }
 
-        while (true) { // Simple infinite loop for base case
+        while (true) {
             sockaddr_in client_addr{};
             socklen_t client_len = sizeof(client_addr);
 
             // Accept connection (blocking)
-             DEBUG("Base run() waiting on accept()...");
+            DEBUG("Base run() waiting on accept()...");
             int client_fd = accept(server_fd, (sockaddr*)&client_addr, &client_len);
             if (client_fd < 0) {
-                // Basic error handling for base case
+                
                  log_error("accept failed: " + std::string(strerror(errno)));
                  // In a real scenario, might need more robust handling (e.g., check for EINTR)
                  // or maybe just break the loop on severe errors.
@@ -206,7 +205,7 @@ public:
                 continue;
             }
 
-            // Log client info
+            
             char client_ip[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
             log("Connection accepted from " + std::string(client_ip) + ":"
@@ -226,29 +225,24 @@ public:
             close_socket(client_fd);
             log("Connection closed for FD " + std::to_string(client_fd));
         }
-        log("Base run loop finished."); // Might not be reachable in this simple version
+        log("Base run loop finished."); 
     }
 
-    // Make stop virtual - Base implementation does nothing specific beyond destructor cleanup
+    
     virtual void stop() {
          log("Base stop() called.");
-         // No threads to stop in the base class.
-         // Closing server_fd happens in destructor.
-         // Derived classes will override this.
 
-         // We might want to close the listening socket here to interrupt accept()
-         // if the run loop is more sophisticated. Let's add a shutdown.
          if (server_fd >= 0) {
              log("Shutting down listening socket to interrupt accept().");
-             // Shutting down read might be enough to unblock accept
+
              shutdown(server_fd, SHUT_RD);
-             // Consider closing fully if needed: close(server_fd); server_fd = -1;
+
          }
     }
 
-    // Prevent copying/assignment
+    
     TCPServer(const TCPServer&) = delete;
     TCPServer& operator=(const TCPServer&) = delete;
 };
 
-#endif // BASE_TCP_SERVER_HPP
+#endif 

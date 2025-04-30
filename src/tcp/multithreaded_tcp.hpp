@@ -41,12 +41,12 @@ private:
         while (true) {
             int client_fd = -1; // Initialize to invalid FD
 
-            // --- Wait for a task ---
-            { // Scope for unique_lock
+            
+            { 
                 std::unique_lock<std::mutex> lock(queue_mutex);
                 condition.wait(lock, [this] { return !client_queue.empty() || stop_requested; });
 
-                // If woken up to stop and queue is empty, exit thread
+                
                 if (stop_requested && client_queue.empty()) {
                      log("Worker thread exiting gracefully.");
                     return; // Exit the thread loop
@@ -65,22 +65,18 @@ private:
                 }
             } // Lock released here
 
-            // --- Task obtained ---
+            
             if (client_fd >= 0) {
                 log("Worker thread handling connection for FD " + std::to_string(client_fd));
 
-                // Handle the connection using the BASE CLASS implementation
                 try {
-                    TCPServer::handle_connection(client_fd); // Explicitly call base version
+                    TCPServer::handle_connection(client_fd); 
                 } catch (const std::exception& e) {
-                     // This catch block might be redundant if handle_connection already logs everything
                      log_error("Worker thread caught unhandled exception from handle_connection: " + std::string(e.what()));
                 } catch (...) {
                      log_error("Worker thread caught unknown unhandled exception from handle_connection.");
                 }
 
-
-                // Close the client socket using BASE CLASS implementation
                 TCPServer::close_socket(client_fd);
                 log("Worker thread finished and closed FD " + std::to_string(client_fd));
             }
@@ -172,20 +168,20 @@ public:
                 }
             }
 
-            // Log client info
+            
             char client_ip[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
             log("Connection accepted from " + std::string(client_ip) + ":"
                 + std::to_string(ntohs(client_addr.sin_port)) + " [FD: " + std::to_string(client_fd) + "]");
 
-            // --- Add client socket to the queue ---
-            { // Scope for lock
+            
+            { // add client_fd by taking RAII lock 
                 std::lock_guard<std::mutex> lock(queue_mutex);
                 client_queue.push(client_fd);
                 DEBUG("Pushed client FD to queue:", client_fd);
-            } // Lock released
+            } 
 
-            // Notify one waiting worker thread
+            
             condition.notify_one();
             DEBUG("Notified one worker thread.");
         }
@@ -238,10 +234,10 @@ public:
         log("Multi-threaded server stopped.");
     }
 
-    // Prevent copying/assignment
+    
     MultiThreadedTCPServer(const MultiThreadedTCPServer&) = delete;
     MultiThreadedTCPServer& operator=(const MultiThreadedTCPServer&) = delete;
 };
 
 
-#endif // MULTI_THREADED_TCP_SERVER_HPP
+#endif 
